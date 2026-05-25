@@ -1,30 +1,16 @@
 const nodemailer = require('nodemailer');
 
-const getTransporter = () => {
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 0);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-
-  if (!host || !port || !user || !pass) {
-    throw new Error('SMTP chưa cấu hình đầy đủ (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS).');
-  }
-
-  const secure =
-    process.env.SMTP_SECURE !== undefined
-      ? String(process.env.SMTP_SECURE).toLowerCase() === 'true' || String(process.env.SMTP_SECURE) === '1'
-      : port === 465;
-
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    auth: { user, pass },
-  });
-};
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: false,
+  auth: { user: process.env.SMTP_USER, pass: (process.env.SMTP_PASS || '').trim() },
+});
 
 const sendEmail = async ({ to, subject, html }) => {
-  const transporter = getTransporter();
+  if (!process.env.EMAIL_FROM) {
+    throw new Error('Thiếu EMAIL_FROM trong .env (ví dụ: EMAIL_FROM=your_email@gmail.com).');
+  }
   const finalHtml = `
     <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
       ${html}
@@ -37,7 +23,7 @@ const sendEmail = async ({ to, subject, html }) => {
     </div>
   `;
   await transporter.sendMail({
-    from: `"Event System" <${process.env.EMAIL_FROM || process.env.SMTP_USER}>`,
+    from: `"Event System" <${process.env.EMAIL_FROM}>`,
     to,
     subject,
     html: finalHtml,
@@ -50,7 +36,7 @@ const emailTemplates = {
     <h2>Xác thực tài khoản</h2>
     <p>Nhấn vào đường dẫn bên dưới để xác thực tài khoản của bạn:</p>
     <a href="${link}" style="background:#2E75B6;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">Xác thực ngay</a>
-    <p>Link hết hạn sau 24 giờ.</p>`,
+    <p>Link hết hạn sau 2 giờ.</p>`,
 
   ticketConfirm: (event, qrCode) => `
     <h2>🎫 Xác nhận đăng ký thành công!</h2>

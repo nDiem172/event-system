@@ -25,7 +25,7 @@ const register = async (req, res, next) => {
       password,
       status: 'Pending_Verification',
       verificationToken,
-      verificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      verificationExpires: new Date(Date.now() + 2 * 60 * 60 * 1000),
     });
 
     // Gửi email xác thực
@@ -103,18 +103,20 @@ const login = async (req, res, next) => {
 const verifyEmail = async (req, res, next) => {
   try {
     const { token } = req.query;
-    const user = await User.findOne({
-      verificationToken: token,
-      verificationExpires: { $gt: Date.now() },
-    });
-    if (!user) {
+    const user = await User.findOne({ verificationToken: token });
+    if (!user) return res.status(400).json({ success: false, message: 'Mã xác thực không hợp lệ hoặc đã hết hạn.' });
+
+    if (user.verificationExpires && user.verificationExpires <= Date.now()) {
       return res.status(400).json({ success: false, message: 'Mã xác thực không hợp lệ hoặc đã hết hạn.' });
     }
+
+    if (user.status === 'Active') {
+      return res.json({ success: true, message: 'Tài khoản đã được kích hoạt trước đó. Bạn có thể đăng nhập.' });
+    }
+
     user.status = 'Active';
-    user.verificationToken = undefined;
-    user.verificationExpires = undefined;
     await user.save();
-    res.json({ success: true, message: 'Xác thực email thành công! Bạn có thể đăng nhập.' });
+    return res.json({ success: true, message: 'Xác thực email thành công! Bạn có thể đăng nhập.' });
   } catch (err) { next(err); }
 };
 
@@ -126,7 +128,7 @@ const resendVerification = async (req, res, next) => {
     if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản chờ xác thực.' });
     const token = uuidv4();
     user.verificationToken = token;
-    user.verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    user.verificationExpires = new Date(Date.now() + 2 * 60 * 60 * 1000);
     await user.save();
     const link = `${process.env.CLIENT_URL}/verify-email?token=${token}`;
     await sendEmail({ to: email, subject: 'Gửi lại xác thực tài khoản', html: emailTemplates.verification(link) });

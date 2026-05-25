@@ -31,6 +31,9 @@ export default function EventDetailPage() {
   if (loading) return <p style={{ textAlign: 'center', padding: 60 }}>Đang tải...</p>;
   if (!event)  return <p style={{ textAlign: 'center', padding: 60 }}>Không tìm thấy sự kiện.</p>;
 
+  const now = new Date();
+  const isEnded = new Date(event.endTime) <= now;
+  const isStarted = new Date(event.startTime) <= now;
   const isFree    = event.ticketTypes?.[0]?.price === 0;
   const hasTicket = event.availableTickets > 0;
 
@@ -83,11 +86,17 @@ export default function EventDetailPage() {
               </div>
             ))}
             <div style={{ borderTop: '1px solid #eee', margin: '16px 0' }} />
-            <p style={{ fontSize: 13, color: hasTicket ? '#27ae60' : '#e74c3c', fontWeight: 'bold', marginBottom: 16 }}>
-              {hasTicket ? `✅ Còn ${event.availableTickets} vé` : '❌ Đã hết vé'}
-            </p>
+            {isEnded ? (
+              <p style={{ fontSize: 13, color: '#888', fontWeight: 'bold', marginBottom: 16 }}>⏱️ Sự kiện đã kết thúc</p>
+            ) : isStarted ? (
+              <p style={{ fontSize: 13, color: '#e67e22', fontWeight: 'bold', marginBottom: 16 }}>⏱️ Sự kiện đã bắt đầu</p>
+            ) : (
+              <p style={{ fontSize: 13, color: hasTicket ? '#27ae60' : '#e74c3c', fontWeight: 'bold', marginBottom: 16 }}>
+                {hasTicket ? `✅ Còn ${event.availableTickets} vé` : '❌ Đã hết vé'}
+              </p>
+            )}
 
-            {hasTicket ? (
+            {!isEnded && !isStarted && hasTicket ? (
               user ? (
                 user.role === 'Attendee' ? (
                   <Link to={`/events/${id}/register`}>
@@ -102,7 +111,7 @@ export default function EventDetailPage() {
                 </Link>
               )
             ) : (
-              user?.role === 'Attendee' && (
+              !isEnded && !isStarted && user?.role === 'Attendee' && (
                 <button onClick={handleJoinWaitlist} style={btn('#e67e22')}>
                   ⏳ Vào danh sách chờ
                 </button>

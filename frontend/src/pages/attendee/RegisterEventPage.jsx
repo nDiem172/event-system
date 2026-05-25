@@ -45,6 +45,12 @@ export default function RegisterEventPage() {
 
   if (!event) return <p style={{ textAlign: 'center', padding: 60 }}>Đang tải...</p>;
 
+  const now = new Date();
+  const isEnded = new Date(event.endTime) <= now;
+  const isStarted = new Date(event.startTime) <= now;
+  if (isEnded) return <p style={{ textAlign: 'center', padding: 60, color: '#888' }}>Sự kiện đã kết thúc, không thể đăng ký.</p>;
+  if (isStarted) return <p style={{ textAlign: 'center', padding: 60, color: '#e67e22' }}>Sự kiện đã bắt đầu, không thể đăng ký.</p>;
+
   const tType = event.ticketTypes?.find(t => t.name === selectedType);
 
   return (

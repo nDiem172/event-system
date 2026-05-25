@@ -5,8 +5,13 @@ const Event = require('../../models/Event');
 // GET /api/events — danh sách sự kiện công khai (UC-04)
 router.get('/', async (req, res, next) => {
   try {
-    const { search, category, from, to, page = 1, limit = 12 } = req.query;
+    const { search, category, from, to, scope = 'upcoming', page = 1, limit = 12 } = req.query;
     let filter = { status: 'Public' };
+    const now = new Date();
+    if (scope === 'upcoming') filter.endTime = { $gt: now };
+    else if (scope === 'past') filter.endTime = { $lte: now };
+    else if (scope !== 'all') return res.status(400).json({ success: false, message: 'scope không hợp lệ (upcoming|past|all)' });
+
     if (search) filter.$or = [{ title: { $regex: search, $options: 'i' } }, { location: { $regex: search, $options: 'i' } }];
     if (category) filter.category = category;
     if (from) filter.startTime = { $gte: new Date(from) };
@@ -14,7 +19,7 @@ router.get('/', async (req, res, next) => {
 
     const events = await Event.find(filter)
       .select('title location startTime endTime bannerUrl availableTickets ticketTypes category')
-      .sort({ startTime: 1 })
+      .sort(scope === 'past' ? { startTime: -1 } : { startTime: 1 })
       .skip((page - 1) * limit)
       .limit(Number(limit));
     const total = await Event.countDocuments(filter);

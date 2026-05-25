@@ -33,6 +33,7 @@ const registerTicket = async (req, res, next) => {
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ success: false, message: 'Sự kiện không tồn tại.' });
     if (event.status !== 'Public') return res.status(400).json({ success: false, message: 'Sự kiện chưa công khai.' });
+    if (new Date(event.startTime) <= new Date()) return res.status(400).json({ success: false, message: 'Sự kiện đã bắt đầu hoặc đã kết thúc, không thể đăng ký.' });
     if (event.availableTickets <= 0) return res.status(400).json({ success: false, message: 'Sự kiện đã hết vé.' });
 
     // Kiểm tra đã đăng ký chưa (1 vé / tài khoản)
