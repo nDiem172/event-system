@@ -133,32 +133,6 @@ npm run seed:events
 
 ### 4. Tạo tài khoản Admin đầu tiên
 
-Truy cập MongoDB và chạy lệnh sau (hoặc dùng MongoDB Compass):
-
-```js
-// Chạy trong MongoDB shell
-use event_system
-db.users.insertOne({
-  fullName: "Quản trị viên",
-  email: "admin@eventsystem.vn",
-  phone: "0900000000",
-  password: "$2a$10$YourHashedPasswordHere", // bcrypt hash của "Admin@123"
-  role: "Admin",
-  status: "Active",
-  createdAt: new Date(),
-  updatedAt: new Date()
-})
-Email: nv.staff@eventsystem.vn
-Mật khẩu: TTT@123
-Email: nv.creator@eventsystem.vn
-Mật khẩu: TTTcreator@123
-Email: manager@eventsystem.vn
-Mật khẩu: Manager@123
-
-Hoặc dễ hơn: đăng ký qua `/register`, sau đó dùng MongoDB Compass đổi `role → Admin` và `status → Active`.
-
----
-
 ## 🔑 Phân quyền hệ thống
 
 | Role | Trang sau đăng nhập | Quyền chính |
