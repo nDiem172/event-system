@@ -1,0 +1,11 @@
+const express = require('express');
+const r = express.Router();
+const { protect, authorize } = require('../../middleware/auth.middleware');
+const c = require('../../controllers/main.controller');
+r.use(protect, authorize('Admin'));
+r.get('/users', c.getAllUsers);
+r.post('/users', c.createInternalUser);
+r.patch('/users/:id', c.updateUserStatus);
+r.delete('/users/:id', c.deleteUser);
+r.get('/logs', c.getSystemLogs);
+module.exports = r;

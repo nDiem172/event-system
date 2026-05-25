@@ -1,0 +1,15 @@
+const express = require('express');
+const r = express.Router();
+const { protect, authorize } = require('../../middleware/auth.middleware');
+const c = require('../../controllers/main.controller');
+r.use(protect, authorize('Manager', 'Admin'));
+r.get('/events/pending', c.getPendingEvents);
+r.patch('/events/:id/approve', c.approveEvent);
+r.patch('/events/:id/reject', c.rejectEvent);
+r.get('/refunds', c.getPendingRefunds);
+r.patch('/refunds/:id/approve', c.approveRefund);
+r.patch('/refunds/:id/reject', c.rejectRefund);
+r.get('/events/:eventId/export', c.exportAttendees);
+r.get('/dashboard', c.getDashboard);
+r.patch('/events/:eventId/stock', c.adjustTicketStock);
+module.exports = r;
