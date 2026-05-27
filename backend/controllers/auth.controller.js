@@ -31,7 +31,7 @@ const register = async (req, res, next) => {
     // Gửi email xác thực
     const verifyLink = `${process.env.CLIENT_URL}/verify-email?token=${verificationToken}`;
     try {
-      await sendEmail({ to: email, subject: 'Xác thực tài khoản Event System', html: emailTemplates.verification(verifyLink) });
+      await sendEmail({ to: email, subject: 'Xác thực tài khoản Event System', html: emailTemplates.verification(verifyLink, fullName) });
     } catch (e) {
       console.error('Email lỗi:', e.message);
     }
@@ -131,7 +131,7 @@ const resendVerification = async (req, res, next) => {
     user.verificationExpires = new Date(Date.now() + 2 * 60 * 60 * 1000);
     await user.save();
     const link = `${process.env.CLIENT_URL}/verify-email?token=${token}`;
-    await sendEmail({ to: email, subject: 'Gửi lại xác thực tài khoản', html: emailTemplates.verification(link) });
+    await sendEmail({ to: email, subject: 'Gửi lại xác thực tài khoản', html: emailTemplates.verification(link, user.fullName) });
     res.json({ success: true, message: 'Email xác thực đã được gửi lại.' });
   } catch (err) { next(err); }
 };

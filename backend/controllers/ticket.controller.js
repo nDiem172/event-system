@@ -59,6 +59,7 @@ const registerTicket = async (req, res, next) => {
       attendeeInfo,
       ticketType,
       price: tType.price,
+      ticketCode: ticketCode,
       qrCode: ticketCode,
       status: isFree ? 'Valid' : 'Pending',
       holdExpiresAt: isFree ? undefined : new Date(Date.now() + holdMinutes * 60 * 1000),
@@ -76,7 +77,8 @@ const registerTicket = async (req, res, next) => {
       });
 
       try {
-        await sendEmail({ to: req.user.email, subject: `Vé tham gia: ${event.title}`, html: emailTemplates.ticketConfirm(event, qrImage) });
+        const ticketLink = `${process.env.CLIENT_URL || 'http://localhost:3000'}/my-tickets/${ticket._id}`;
+        await sendEmail({ to: req.user.email, subject: `Vé tham gia: ${event.title}`, html: emailTemplates.ticketConfirm(event, qrImage, req.user.fullName, ticketLink) });
       } catch (_) {}
 
       return res.status(201).json({ success: true, message: 'Đăng ký thành công!', data: ticket });
@@ -109,7 +111,8 @@ const updateTicketInfo = async (req, res, next) => {
     await ticket.save();
 
     try {
-      await sendEmail({ to: req.user.email, subject: `Vé đã được cập nhật: ${event.title}`, html: emailTemplates.ticketUpdated(event, newQR) });
+      const ticketLink = `${process.env.CLIENT_URL || 'http://localhost:3000'}/my-tickets/${ticket._id}`;
+      await sendEmail({ to: req.user.email, subject: `Vé đã được cập nhật: ${event.title}`, html: emailTemplates.ticketUpdated(event, newQR, req.user.fullName, ticketLink) });
     } catch (_) {}
 
     res.json({ success: true, message: 'Cập nhật thông tin vé thành công.', data: ticket });
@@ -146,7 +149,8 @@ const cancelTicket = async (req, res, next) => {
       });
 
       try {
-        await sendEmail({ to: req.user.email, subject: 'Yêu cầu hoàn tiền đã được ghi nhận', html: emailTemplates.refundPending(event, expected) });
+        const ticketLink = `${process.env.CLIENT_URL || 'http://localhost:3000'}/my-tickets/${ticket._id}`;
+        await sendEmail({ to: req.user.email, subject: 'Yêu cầu hoàn tiền đã được ghi nhận', html: emailTemplates.refundPending(event, expected, req.user.fullName, ticketLink) });
       } catch (_) {}
     } else {
       // Vé miễn phí → hủy ngay
@@ -156,7 +160,8 @@ const cancelTicket = async (req, res, next) => {
       await event.save();
 
       try {
-        await sendEmail({ to: req.user.email, subject: 'Xác nhận hủy vé', html: emailTemplates.ticketCanceled(event) });
+        const ticketLink = `${process.env.CLIENT_URL || 'http://localhost:3000'}/my-tickets/${ticket._id}`;
+        await sendEmail({ to: req.user.email, subject: 'Xác nhận hủy vé', html: emailTemplates.ticketCanceled(event, req.user.fullName, ticketLink  ) });
       } catch (_) {}
     }
 

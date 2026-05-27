@@ -155,6 +155,12 @@ export default function TicketDetailPage() {
           {ticket.status === 'Valid' && ticket.qrCode && (
             <div style={{ textAlign: 'center' }}>
               <img src={ticket.qrCode} alt="QR Code vé" style={{ width: 160, height: 160, border: '4px solid #1F3864', borderRadius: 12 }} />
+              <div style={{ marginTop: 5, marginBottom: 8 }}>
+                {/* <span style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Mã định danh vé</span> */}
+                <p style={{ margin: '4px 0 0 0', fontSize: 12, fontWeight: 'bold', color: '#1F3864', fontFamily: 'monospace' }}>
+                  {ticket.ticketCode || 'Đang cập nhật'}
+                </p>
+              </div>
               <p style={{ color: '#888', fontSize: 12, marginTop: 8 }}>Xuất trình khi check-in</p>
               <a href={ticket.qrCode} download="ticket-qr.png"
                 style={{ background: '#1F3864', color: '#fff', padding: '6px 16px', borderRadius: 8, textDecoration: 'none', fontSize: 12, display: 'inline-block', marginTop: 6 }}>

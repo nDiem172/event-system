@@ -15,6 +15,7 @@ const ticketSchema = new mongoose.Schema(
 
     ticketType: { type: String, required: true },
     price:      { type: Number, required: true, default: 0 },
+    ticketCode: { type: String, required: true, unique: true },
     qrCode:     { type: String },  // base64 hoặc URL ảnh QR
 
     // ─── 6 trạng thái theo đặc tả ─────────────────────

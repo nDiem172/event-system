@@ -8,16 +8,12 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendEmail = async ({ to, subject, html }) => {
-  if (!process.env.EMAIL_FROM) {
-    throw new Error('Thiếu EMAIL_FROM trong .env (ví dụ: EMAIL_FROM=your_email@gmail.com).');
-  }
   const finalHtml = `
     <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
       ${html}
       
       <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0 20px 0;" />
       <p style="font-size: 12px; color: #9d1111; text-align: center;">
-        
         <strong>Thư này được gửi từ địa chỉ mail không chấp nhận mail đến. Vui lòng không trả lời thư này./.</strong>
       </p>
     </div>
@@ -32,24 +28,36 @@ const sendEmail = async ({ to, subject, html }) => {
 
 // ── Templates ────────────────────────────────────────────────
 const emailTemplates = {
-  verification: (link) => `
+  verification: (link, fullName) => `
     <h2>Xác thực tài khoản</h2>
-    <p>Nhấn vào đường dẫn bên dưới để xác thực tài khoản của bạn:</p>
-    <a href="${link}" style="background:#2E75B6;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">Xác thực ngay</a>
+    <p>Chào <strong>${fullName}</strong>,</p>
+    <p>Vui lòng nhấn vào đường dẫn bên dưới để kích hoạt tài khoản của bạn:</p>
+    <div style="text-align: center;">
+      <a href="${link}" style="background:#2E75B6;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">Xác thực ngay</a>
+    </div>
     <p>Link hết hạn sau 2 giờ.</p>`,
 
-  ticketConfirm: (event, qrCode) => `
+  ticketConfirm: (event, qrCode, fullName, loginLink) => `
     <h2>🎫 Xác nhận đăng ký thành công!</h2>
+    <p>Chào <strong>${fullName}</strong>,</p>
     <p>Bạn đã đăng ký tham gia sự kiện: <strong>${event.title}</strong></p>
     <p>📅 Thời gian: ${new Date(event.startTime).toLocaleString('vi-VN')}</p>
     <p>📍 Địa điểm: ${event.location}</p>
     <p>Mã QR vé của bạn:</p>
     <img src="${qrCode}" alt="QR Code vé" style="width:200px;height:200px;" />
-    <p>Vui lòng mang mã QR này đến sự kiện để check-in.</p>`,
+    <p>Vui lòng mang mã QR này đến sự kiện để check-in.</p>
+    <div style="text-align: center;">
+      <a href="${loginLink}" style="background:#2E75B6;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;box-shadow: 0 2px 5px rgba(0,0,0,0.1);">Xem chi tiết tại đây</a>
+    </div>`,
 
-  ticketCanceled: (event) => `
+  ticketCanceled: (event, fullName, ticketLink) => `
     <h2>Xác nhận hủy vé</h2>
-    <p>Vé tham gia sự kiện <strong>${event.title}</strong> của bạn đã được hủy thành công.</p>`,
+    <p>Chào <strong>${fullName}</strong>,</p>
+    <p>Vé tham gia sự kiện <strong>${event.title}</strong> của bạn đã được hủy thành công.</p>
+    <div style="text-align: center;">
+      <a href="${ticketLink}" style="background:#2E75B6;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;box-shadow: 0 2px 5px rgba(0,0,0,0.1);">Xem chi tiết tại đây</a>
+    </div>
+  `,
 
   refundPending: (event, amount) => `
     <h2>Yêu cầu hoàn tiền đã được ghi nhận</h2>
@@ -58,24 +66,24 @@ const emailTemplates = {
     <p>Tiền sẽ được hoàn trong 15-30 ngày làm việc sau khi được phê duyệt.</p>`,
 
   refundApproved: (event, amount) => `
-    <h2>✅ Yêu cầu hoàn tiền đã được duyệt</h2>
+    <h2>Yêu cầu hoàn tiền đã được duyệt</h2>
     <p>Yêu cầu hoàn tiền vé sự kiện <strong>${event.title}</strong> đã được xét duyệt.</p>
     <p>Số tiền hoàn trả thực tế: <strong>${amount.toLocaleString('vi-VN')} VNĐ</strong></p>
     <p>Tiền sẽ được chuyển về phương thức thanh toán gốc trong 15-30 ngày làm việc.</p>`,
 
   refundRejected: (event, reason) => `
-    <h2>❌ Yêu cầu hoàn tiền bị từ chối</h2>
+    <h2>Yêu cầu hoàn tiền bị từ chối</h2>
     <p>Yêu cầu hoàn tiền vé sự kiện <strong>${event.title}</strong> đã bị từ chối.</p>
     <p>Lý do: ${reason}</p>`,
 
   waitlistNotify: (event, link) => `
-    <h2>🎉 Có vé trống cho sự kiện bạn quan tâm!</h2>
+    <h2>Có vé trống cho sự kiện bạn quan tâm!</h2>
     <p>Sự kiện <strong>${event.title}</strong> vừa có vé trống.</p>
     <p>Nhấn vào đây để đăng ký ngay (link hết hạn sau 2 giờ):</p>
-    <a href="${link}" style="background:#2E75B6;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">Đăng ký ngay</a>`,
+    <a href="${link}" style="background:#2E75B6;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;box-shadow: 0 2px 5px rgba(0,0,0,0.1);">Đăng ký ngay</a>`,
 
   accountLocked: () => `
-    <h2>⚠️ Tài khoản bị tạm khóa</h2>
+    <h2>Tài khoản bị tạm khóa</h2>
     <p>Tài khoản của bạn đã bị khóa tạm 15 phút do đăng nhập sai quá 5 lần.</p>
     <p>Nếu đây không phải bạn, hãy liên hệ quản trị viên ngay.</p>`,
 
@@ -90,6 +98,22 @@ const emailTemplates = {
     <p>Sự kiện <strong>${event.title}</strong> đã bị từ chối phê duyệt.</p>
     <p>Lý do: ${reason}</p>
     <p>Vui lòng chỉnh sửa và gửi lại.</p>`,
+  
+  internalAccountCreated: (fullName, email, tempPassword, loginLink) => `
+    <h2>Tài khoản nội bộ đã được tạo</h2>
+    <p>Chào <strong>${fullName}</strong>,</p>
+    <p>Tài khoản của bạn đã được tạo thành công trên hệ thống với thông tin đăng nhập như sau:</p>
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #2E75B6;">
+      <p style="margin: 5px 0;"><strong>Tên đăng nhập:</strong> ${email}</p>
+      <p style="margin: 5px 0;"><strong>Mật khẩu tạm:</strong> <span style="color: #d32f2f; font-weight: bold; font-size: 15px;">${tempPassword}</span></p>
+    </div>
+     <p>Vui lòng thay đổi mật khẩu sau khi đăng nhập để bảo mật tài khoản của bạn tại đây:</p>
+    <div style="text-align: center; margin: 25px 0;">
+      <a href="${loginLink}" style="background:#2E75B6;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;box-shadow: 0 2px 5px rgba(0,0,0,0.1);">Đăng nhập ngay</a>
+    </div>
+    `,
+  
+  
 };
 
 module.exports = { sendEmail, emailTemplates };

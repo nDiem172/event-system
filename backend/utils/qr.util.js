@@ -2,7 +2,11 @@ const QRCode = require('qrcode');
 const { v4: uuidv4 } = require('uuid');
 
 // Sinh chuỗi định danh vé duy nhất
-const generateTicketCode = () => `TKT-${uuidv4().toUpperCase()}`;
+// const generateTicketCode = () => `TKT-${uuidv4().toUpperCase()}`;
+const generateTicketCode = () => {
+  const shortId = uuidv4().replace(/-/g, '').substring(0, 6).toUpperCase();
+  return `TKT-${shortId}`;
+};
 
 // Tạo ảnh QR dạng base64 từ ticketCode
 const generateQRCode = async (ticketCode) => {

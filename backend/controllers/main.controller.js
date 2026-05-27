@@ -350,7 +350,16 @@ const createInternalUser = async (req, res, next) => {
     const user = await User.create({ fullName, email, phone, password: tempPassword, role, status: 'Active' });
     let emailSent = false;
     try {
-      await sendEmail({ to: email, subject: 'Tài khoản nội bộ đã được tạo', html: `<p>Chào ${fullName},</p><p>Tài khoản của bạn đã được tạo với mật khẩu tạm: <strong>${tempPassword}</strong></p><p>Vui lòng đổi mật khẩu sau khi đăng nhập.</p>` });
+      // await sendEmail({ to: email, subject: 'Tài khoản nội bộ đã được tạo', html: `<p>Chào ${fullName},</p><p>Tài khoản của bạn đã được tạo với mật khẩu tạm: <strong>${tempPassword}</strong></p><p>Vui lòng đổi mật khẩu sau khi đăng nhập.</p>` });
+      // emailSent = true;
+      const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+      const loginLink = `${baseUrl}/login`;
+      
+      await sendEmail({ 
+        to: email, 
+        subject: 'Tài khoản nội bộ đã được tạo', 
+        html: emailTemplates.internalAccountCreated(fullName, email, tempPassword, loginLink) 
+      });
       emailSent = true;
     } catch (_) {}
 
