@@ -22,25 +22,57 @@ export default function TicketDetailPage() {
   const [saving, setSaving] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  
+  // State quản lý mã QR động và thời gian đếm ngược
+  const [dynamicQRUrl, setDynamicQRUrl] = useState('');
+  const [timeLeft, setTimeLeft] = useState(120); // Đếm ngược 120 giây (2 phút)
 
   const fetchTicket = () => {
     ticketAPI.getById(id)
       .then(({ data }) => {
         setTicket(data.data);
         setEditForm({ fullName: data.data.attendeeInfo.fullName, phone: data.data.attendeeInfo.phone });
+        generateDynamicQR(data.data.ticketCode);
       })
       .catch(() => toast.error('Không tìm thấy vé'))
       .finally(() => setLoading(false));
   };
 
+  // Hàm sinh mã QR có gắn kèm timestamp hết hạn (hiện tại + 2 phút)
+  const generateDynamicQR = (code) => {
+    if (!code) return;
+    const expireTimestamp = Date.now() + 120 * 1000; // Thời gian hết hạn là 2 phút sau
+    const qrText = encodeURIComponent(`${code}|${expireTimestamp}`);
+    setDynamicQRUrl(`https://quickchart.io/qr?text=${qrText}&size=200`);
+    setTimeLeft(120); // Reset đồng hồ về 120 giây
+  };
+
   useEffect(() => { fetchTicket(); }, [id]);
+
+  // Bộ đếm ngược giây và tự làm mới mã QR sau mỗi 2 phút
+  useEffect(() => {
+    if (ticket?.status !== 'Valid') return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          // Khi đồng hồ về 0, tiến hành sinh mã mới
+          generateDynamicQR(ticket.ticketCode);
+          return 120;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [ticket]);
 
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
       await ticketAPI.update(id, editForm);
-      toast.success('Cập nhật thông tin vé thành công! Kiểm tra email để nhận vé mới.');
+      toast.success('Cập nhật thông tin thành công! Mã vé mới đã được đồng bộ.');
       setEditing(false);
       fetchTicket();
     } catch (err) { toast.error(err.response?.data?.message || 'Lỗi cập nhật'); }
@@ -84,7 +116,6 @@ export default function TicketDetailPage() {
 
       {/* Body */}
       <div style={{ background: '#fff', borderRadius: '0 0 14px 14px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-        {/* Dashed divider */}
         <div style={{ borderTop: '2px dashed #e0e0e0', margin: '0 24px', position: 'relative' }}>
           <div style={{ position: 'absolute', left: -36, top: -14, width: 28, height: 28, background: '#F5F7FA', borderRadius: '50%' }} />
           <div style={{ position: 'absolute', right: -36, top: -14, width: 28, height: 28, background: '#F5F7FA', borderRadius: '50%' }} />
@@ -115,24 +146,25 @@ export default function TicketDetailPage() {
               </form>
             ) : (
               <table style={{ width: '100%', fontSize: 14, borderCollapse: 'collapse' }}>
-                {[
-                  ['Họ và tên', ticket.attendeeInfo.fullName],
-                  ['Email', ticket.attendeeInfo.email],
-                  ['Số điện thoại', ticket.attendeeInfo.phone],
-                  ['Nghề nghiệp', ticket.attendeeInfo.occupation || '—'],
-                  ['Loại vé', ticket.ticketType],
-                  ['Giá vé', ticket.price === 0 ? 'Miễn phí' : `${ticket.price.toLocaleString('vi-VN')} đ`],
-                  ticket.checkedInAt ? ['Thời gian check-in', new Date(ticket.checkedInAt).toLocaleString('vi-VN')] : null,
-                ].filter(Boolean).map(([k, v]) => (
-                  <tr key={k} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '8px 0', color: '#888', width: 140 }}>{k}</td>
-                    <td style={{ padding: '8px 0', fontWeight: 500, color: '#1F3864' }}>{v}</td>
-                  </tr>
-                ))}
+                <tbody>
+                  {[
+                    ['Họ và tên', ticket.attendeeInfo.fullName],
+                    ['Email', ticket.attendeeInfo.email],
+                    ['Số điện thoại', ticket.attendeeInfo.phone],
+                    ['Nghề nghiệp', ticket.attendeeInfo.occupation || '—'],
+                    ['Loại vé', ticket.ticketType],
+                    ['Giá vé', ticket.price === 0 ? 'Miễn phí' : `${ticket.price.toLocaleString('vi-VN')} đ`],
+                    ticket.checkedInAt ? ['Thời gian check-in', new Date(ticket.checkedInAt).toLocaleString('vi-VN')] : null,
+                  ].filter(Boolean).map(([k, v]) => (
+                    <tr key={k} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <td style={{ padding: '8px 0', color: '#888', width: 140 }}>{k}</td>
+                      <td style={{ padding: '8px 0', fontWeight: 500, color: '#1F3864' }}>{v}</td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             )}
 
-            {/* Action buttons */}
             {!editing && (
               <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap' }}>
                 {canEdit && (
@@ -151,21 +183,19 @@ export default function TicketDetailPage() {
             )}
           </div>
 
-          {/* QR Code */}
-          {ticket.status === 'Valid' && ticket.qrCode && (
-            <div style={{ textAlign: 'center' }}>
-              <img src={ticket.qrCode} alt="QR Code vé" style={{ width: 160, height: 160, border: '4px solid #1F3864', borderRadius: 12 }} />
-              <div style={{ marginTop: 5, marginBottom: 8 }}>
-                {/* <span style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 1 }}>Mã định danh vé</span> */}
-                <p style={{ margin: '4px 0 0 0', fontSize: 12, fontWeight: 'bold', color: '#1F3864', fontFamily: 'monospace' }}>
-                  {ticket.ticketCode || 'Đang cập nhật'}
+          {/* QR Code Section */}
+          {ticket.status === 'Valid' && dynamicQRUrl && (
+            <div style={{ textAlign: 'center', minWidth: 180 }}>
+              <img src={dynamicQRUrl} alt="QR Code bảo mật" style={{ width: 160, height: 160, border: '4px solid #1F3864', borderRadius: 12 }} />
+              
+              {/* Thanh hiển thị thời gian đếm ngược làm mới mã */}
+              
+
+              <div style={{ marginTop: 8 }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 'bold', color: '#1F3864', fontFamily: 'monospace' }}>
+                  {ticket.ticketCode}
                 </p>
               </div>
-              <p style={{ color: '#888', fontSize: 12, marginTop: 8 }}>Xuất trình khi check-in</p>
-              <a href={ticket.qrCode} download="ticket-qr.png"
-                style={{ background: '#1F3864', color: '#fff', padding: '6px 16px', borderRadius: 8, textDecoration: 'none', fontSize: 12, display: 'inline-block', marginTop: 6 }}>
-                Tải QR
-              </a>
             </div>
           )}
         </div>

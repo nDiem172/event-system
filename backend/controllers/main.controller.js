@@ -4,7 +4,7 @@ const User    = require('../models/User');
 const { RefundRequest, WaitingList, Transaction, SystemLog } = require('../models/index');
 const { sendEmail, emailTemplates } = require('../utils/email.util');
 const XLSX = require('xlsx');
-const { generateQRCode } = require('../utils/qr.util');
+const { generateQRCode, parseTicketCodeFromScan } = require('../utils/qr.util');
 
 // ══════════════════════════════════════════════
 // CONTENT CREATOR — UC-08
@@ -213,55 +213,158 @@ const adjustTicketStock = async (req, res, next) => {
 // ══════════════════════════════════════════════
 // STAFF — UC-12
 // ══════════════════════════════════════════════
+
+// const checkInByQR = async (req, res, next) => {
+//   try {
+//     const { qrCode: scanned } = req.body; 
+    
+//     const ticketCode = parseTicketCodeFromScan(scanned);
+//     if (!ticketCode) {
+//       return res.status(400).json({ success: false, message: 'Mã quét không hợp lệ (cần định dạng TKT-XXXXXX).' });
+//     }
+
+//     const ticket = await Ticket.findOne({ ticketCode }).populate('eventId', 'title location startTime');
+//     if (!ticket) return res.status(404).json({ success: false, message: 'Không tìm thấy vé với mã này.' });
+
+//     if (ticket.status === 'Checked-in') {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Vé đã được check-in trước đó.',
+//         checkedInAt: ticket.checkedInAt,
+//         data: {
+//           fullName: ticket.attendeeInfo.fullName,
+//           phone: ticket.attendeeInfo.phone,
+//           email: ticket.attendeeInfo.email,
+//           ticketCode: ticket.ticketCode,
+//           ticketType: ticket.ticketType,
+//         },
+//       });
+//     }
+    
+//     if (ticket.status !== 'Valid') {
+//       return res.status(400).json({ success: false, message: `Vé không hợp lệ (trạng thái: ${ticket.status}).` });
+//     }
+
+//     ticket.status = 'Checked-in';
+//     ticket.checkedInAt = new Date();
+//     await ticket.save();
+
+//     res.json({
+//       success: true,
+//       message: 'Xác thực vé thành công!',
+//       data: {
+//         fullName: ticket.attendeeInfo.fullName,
+//         phone: ticket.attendeeInfo.phone,
+//         email: ticket.attendeeInfo.email,
+//         ticketCode: ticket.ticketCode,
+//         ticketType: ticket.ticketType,
+//         checkedInAt: ticket.checkedInAt,
+//         eventTitle: ticket.eventId.title,
+//       },
+//     });
+//   } catch (err) { next(err); }
+// };
 const checkInByQR = async (req, res, next) => {
   try {
-    const { qrCode, eventId } = req.body;
-    // qrCode ở đây là ticketCode string (chuỗi TKT-xxx)
-    const ticket = await Ticket.findOne({ qrCode: { $regex: qrCode } }).populate('userId', 'fullName');
-    if (!ticket) return res.status(404).json({ success: false, message: 'Mã vé không hợp lệ.' });
-    if (ticket.eventId.toString() !== eventId) return res.status(400).json({ success: false, message: 'Vé không thuộc sự kiện này.' });
-    if (ticket.status === 'Checked-in') {
-      return res.status(400).json({ success: false, message: 'Vé đã được sử dụng.', checkedInAt: ticket.checkedInAt });
-    }
-    if (ticket.status !== 'Valid') return res.status(400).json({ success: false, message: `Vé không hợp lệ (trạng thái: ${ticket.status}).` });
+    const { qrCode: scanned } = req.body; 
+    const ticketCode = parseTicketCodeFromScan(scanned);
+    if (!ticketCode) return res.status(400).json({ success: false, message: 'Mã không hợp lệ.' });
 
-    ticket.status = 'Checked-in';
-    ticket.checkedInAt = new Date();
-    await ticket.save();
+    // Populate event để lấy sessions
+    const ticket = await Ticket.findOne({ ticketCode }).populate('eventId', 'title sessions');
+    if (!ticket) return res.status(404).json({ success: false, message: 'Vé không tồn tại.' });
+    
+    const event = ticket.eventId;
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
 
-    res.json({ success: true, message: 'Check-in thành công!', data: { fullName: ticket.attendeeInfo.fullName, checkedInAt: ticket.checkedInAt } });
+    // 1. Tìm phiên diễn ra hôm nay
+    const session = event.sessions.find(s => 
+        new Date(s.date).toISOString().split('T')[0] === todayStr
+    );
+
+    if (!session) return res.status(400).json({ success: false, message: 'Hôm nay không có phiên check-in nào diễn ra.' });
+
+    // 2. So sánh khung giờ (Cho phép sớm 30 phút)
+    const [startH, startM] = session.startCheckIn.split(':').map(Number);
+    const [endH, endM] = session.endCheckIn.split(':').map(Number);
+    
+    const startTime = new Date(session.date).setHours(startH, startM, 0);
+    const endTime = new Date(session.date).setHours(endH, endM, 0);
+    const openTime = startTime - (30 * 60 * 1000); // Mở cửa sớm 30 phút
+
+    if (now.getTime() < openTime) return res.status(400).json({ success: false, message: `Chưa đến giờ check-in. Vui lòng quay lại lúc ${session.startCheckIn}.` });
+    if (now.getTime() > endTime) return res.status(400).json({ success: false, message: 'Đã hết giờ check-in cho phiên này.' });
+
+    // 3. Logic Check-in: Ghi Log thay vì chặn hoàn toàn
+    // Bạn nên tạo model CheckInLog như đã hướng dẫn ở bước trước
+    const { CheckInLog } = require('../models/index');
+    await CheckInLog.create({ ticketId: ticket._id, scannerName: req.user.fullName });
+
+    res.json({ success: true, message: 'Check-in thành công!', data: ticket });
   } catch (err) { next(err); }
 };
 
 const checkInManual = async (req, res, next) => {
   try {
-    const { keyword, eventId } = req.body; // keyword: SĐT hoặc email
+    
+    const { keyword } = req.body; 
+    const keywordTrimmed = typeof keyword === 'string' ? keyword.trim() : keyword;
+    
     const ticket = await Ticket.findOne({
-      eventId,
+    
       status: 'Valid',
-      $or: [{ 'attendeeInfo.phone': keyword }, { 'attendeeInfo.email': keyword }],
-    });
+      $or: [
+        { 'attendeeInfo.phone': keywordTrimmed },
+        { 'attendeeInfo.email': keywordTrimmed },
+        { ticketCode: String(keywordTrimmed || '').toUpperCase() },
+      ],
+    }).populate('eventId', 'title');
+    
     if (!ticket) return res.status(404).json({ success: false, message: 'Không tìm thấy vé phù hợp.' });
 
     ticket.status = 'Checked-in';
     ticket.checkedInAt = new Date();
     await ticket.save();
 
-    res.json({ success: true, message: 'Check-in thủ công thành công!', data: { fullName: ticket.attendeeInfo.fullName, checkedInAt: ticket.checkedInAt } });
+    res.json({
+      success: true,
+      message: 'Xác thực vé thành công!',
+      data: {
+        fullName: ticket.attendeeInfo.fullName,
+        phone: ticket.attendeeInfo.phone,
+        email: ticket.attendeeInfo.email,
+        ticketCode: ticket.ticketCode,
+        ticketType: ticket.ticketType,
+        checkedInAt: ticket.checkedInAt,
+        eventTitle: ticket.eventId?.title,
+      },
+    });
   } catch (err) { next(err); }
 };
 
 // Offline Sync: nhận mảng check-in từ thiết bị
 const syncOfflineCheckins = async (req, res, next) => {
   try {
-    const { checkins } = req.body; // [{ qrCode, eventId, checkedInAt }]
+    const { checkins } = req.body; 
     const results = [];
     for (const item of checkins) {
-      const ticket = await Ticket.findOne({ qrCode: { $regex: item.qrCode } });
-      if (!ticket || ticket.status === 'Checked-in') {
-        results.push({ qrCode: item.qrCode, status: 'skipped', reason: ticket?.status === 'Checked-in' ? 'Đã check-in' : 'Không tìm thấy' });
+      const ticketCode = parseTicketCodeFromScan(item.qrCode);
+      if (!ticketCode) {
+        results.push({ qrCode: item.qrCode, status: 'skipped', reason: 'Mã quét không hợp lệ' });
         continue;
       }
+      
+      const ticket = await Ticket.findOne({ ticketCode });
+      if (!ticket) {
+        results.push({ qrCode: item.qrCode, status: 'skipped', reason: 'Không tìm thấy vé' });
+        continue;
+      }
+      if (ticket.status === 'Checked-in') {
+        results.push({ qrCode: item.qrCode, status: 'skipped', reason: 'Đã check-in' });
+        continue;
+      }
+      
       ticket.status = 'Checked-in';
       ticket.checkedInAt = item.checkedInAt || new Date();
       await ticket.save();
@@ -354,7 +457,7 @@ const createInternalUser = async (req, res, next) => {
       // emailSent = true;
       const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
       const loginLink = `${baseUrl}/login`;
-      
+      const ticketLink = `${baseUrl}/tickets`;
       await sendEmail({ 
         to: email, 
         subject: 'Tài khoản nội bộ đã được tạo', 

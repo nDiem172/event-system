@@ -13,6 +13,12 @@ const eventSchema = new mongoose.Schema(
     description: { type: String, required: true },
     location:    { type: String, required: true },
     category:    { type: String, default: 'Khác' },
+    // Mảng các phiên check-in
+    sessions: [{
+        date: { type: Date, required: true },
+        startCheckIn: { type: String, required: true }, 
+        endCheckIn: { type: String, required: true }   
+    }],
     startTime:   { type: Date, required: true },
     endTime:     { type: Date, required: true },
     bannerUrl:   { type: String },

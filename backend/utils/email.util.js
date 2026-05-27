@@ -37,18 +37,20 @@ const emailTemplates = {
     </div>
     <p>Link hết hạn sau 2 giờ.</p>`,
 
-  ticketConfirm: (event, qrCode, fullName, loginLink) => `
+  ticketConfirm: (event, qrCode, fullName, ticketLink) => `
     <h2>🎫 Xác nhận đăng ký thành công!</h2>
     <p>Chào <strong>${fullName}</strong>,</p>
     <p>Bạn đã đăng ký tham gia sự kiện: <strong>${event.title}</strong></p>
     <p>📅 Thời gian: ${new Date(event.startTime).toLocaleString('vi-VN')}</p>
     <p>📍 Địa điểm: ${event.location}</p>
     <p>Mã QR vé của bạn:</p>
-    <img src="${qrCode}" alt="QR Code vé" style="width:200px;height:200px;" />
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${ticketLink}" style="background:#2E75B6;color:white;padding:15px 35px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;box-shadow: 0 4px 10px rgba(46,117,182,0.3);">
+        👉 NHẤN ĐỂ LẤY MÃ QR VÀO CỔNG
+      </a>
+    </div>
     <p>Vui lòng mang mã QR này đến sự kiện để check-in.</p>
-    <div style="text-align: center;">
-      <a href="${loginLink}" style="background:#2E75B6;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;box-shadow: 0 2px 5px rgba(0,0,0,0.1);">Xem chi tiết tại đây</a>
-    </div>`,
+    <p style="color: #666; font-size: 13px;">Lưu ý: Mã QR hiển thị trên web là mã động, tự động thay đổi để bảo mật. Vui lòng không chụp màn hình.</p>`,
 
   ticketCanceled: (event, fullName, ticketLink) => `
     <h2>Xác nhận hủy vé</h2>
