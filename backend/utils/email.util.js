@@ -44,6 +44,7 @@ const emailTemplates = {
     <p>📅 Thời gian: ${new Date(event.startTime).toLocaleString('vi-VN')}</p>
     <p>📍 Địa điểm: ${event.location}</p>
     <p>Mã QR vé của bạn:</p>
+
     <div style="text-align: center; margin: 30px 0;">
       <a href="${ticketLink}" style="background:#2E75B6;color:white;padding:15px 35px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;box-shadow: 0 4px 10px rgba(46,117,182,0.3);">
         👉 NHẤN ĐỂ LẤY MÃ QR VÀO CỔNG
@@ -60,6 +61,15 @@ const emailTemplates = {
       <a href="${ticketLink}" style="background:#2E75B6;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;box-shadow: 0 2px 5px rgba(0,0,0,0.1);">Xem chi tiết tại đây</a>
     </div>
   `,
+  paymentPending: (event, fullName, price, paymentLink) => {
+    return `
+      <h2>Xác nhận giữ chỗ: ${event.title}</h2>
+      <p>Chào ${fullName},</p>
+      <p>Chúng tôi đã giữ chỗ cho bạn. Vui lòng hoàn tất thanh toán số tiền: <strong>${price.toLocaleString()} VNĐ</strong>.</p>
+      <p><a href="${paymentLink}" style="padding: 10px 20px; background: #2E75B6; color: white; text-decoration: none;">Thanh toán ngay</a></p>
+      <p>Cảm ơn bạn!</p>
+    `;
+  },
 
   refundPending: (event, amount) => `
     <h2>Yêu cầu hoàn tiền đã được ghi nhận</h2>

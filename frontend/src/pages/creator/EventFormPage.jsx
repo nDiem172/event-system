@@ -15,6 +15,7 @@ export default function EventFormPage() {
     title: '', description: '', location: '', category: 'Hội thảo',
     startTime: '', endTime: '', bannerUrl: '', totalTickets: 100,
     ticketTypes: [{ name: 'Vé thường', price: 0, quantity: 100, available: 100 }],
+    registrationDeadline: '',
     policies: { terms: '', minAge: 0, refundPercentage: 100, cancelDeadlineHours: 24 },
   });
   const [loading, setLoading] = useState(false);
@@ -30,6 +31,7 @@ export default function EventFormPage() {
             title: ev.title, description: ev.description, location: ev.location,
             category: ev.category, bannerUrl: ev.bannerUrl || '',
             startTime: ev.startTime?.slice(0, 16), endTime: ev.endTime?.slice(0, 16),
+            registrationDeadline: ev.registrationDeadline?.slice(0, 16),
             totalTickets: ev.totalTickets,
             ticketTypes: ev.ticketTypes,
             policies: ev.policies,
@@ -162,6 +164,10 @@ export default function EventFormPage() {
           <div>
             <label style={lbl}>Hủy trước (giờ)</label>
             <input style={inp} type="number" min={0} value={form.policies.cancelDeadlineHours} onChange={setPol('cancelDeadlineHours')} />
+          </div>
+          <div>
+            <label style={lbl}>Hạn chót đăng ký *</label>
+            <input style={inp} type="date" value={form.registrationDeadline} onChange={set('registrationDeadline')} />
           </div>
         </div>
       </div>

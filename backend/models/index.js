@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const CheckInLog = require('./CheckInLog');
 
 // ── Transaction ─────────────────────────────────────────────
 const transactionSchema = new mongoose.Schema(
@@ -8,8 +9,11 @@ const transactionSchema = new mongoose.Schema(
     ticketId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ticket', required: true },
     amount:   { type: Number, required: true },
     type:     { type: String, enum: ['Payment', 'Refund'], required: true },
-    paymentMethod: { type: String, enum: ['VNPay', 'VietQR', 'Free'] },
+    paymentMethod: { type: String, enum: ['VNPay', 'VietQR', 'Free', 'Mock', 'Refund'] },
     transactionRef: { type: String },  // Mã đối soát VNPay
+    vnpTransactionNo: { type: String }, // Mã giao dịch VNPay (cần cho refund)
+    paymentDate: { type: String },     // Ngày thanh toán VNPay (cần cho refund)
+    bankCode: { type: String },        // Mã ngân hàng VNPay
     vnpayData: { type: Object },       // Lưu toàn bộ response VNPay để đối soát
     status: {
       type: String,
@@ -73,4 +77,5 @@ module.exports = {
   RefundRequest:  mongoose.model('RefundRequest', refundRequestSchema),
   WaitingList:    mongoose.model('WaitingList', waitingListSchema),
   SystemLog:      mongoose.model('SystemLog', systemLogSchema),
+  CheckInLog,
 };

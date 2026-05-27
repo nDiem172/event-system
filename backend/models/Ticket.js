@@ -18,17 +18,17 @@ const ticketSchema = new mongoose.Schema(
     ticketCode: { type: String, required: true, unique: true },
     qrCode:     { type: String },  // base64 hoặc URL ảnh QR
 
-    // ─── 6 trạng thái theo đặc tả ─────────────────────
+    // ─── 7 trạng thái theo đặc tả ─────────────────────
     status: {
       type: String,
       enum: [
-        'Pending',        // Chờ thanh toán (đang ở cổng VNPay)
-        'Valid',          // Hợp lệ (đã TT hoặc miễn phí, sẵn sàng dùng)
-        'Checked-in',     // Đã tham gia (Staff quét QR)
-        'Canceled',       // Đã hủy (hủy miễn phí hoặc không hoàn tiền)
-        'Refund-Pending', // Chờ hoàn tiền (hủy vé có phí, chờ Manager duyệt)
-        'Refunded',       // Đã hoàn tiền (Manager đã duyệt hoàn)
-      ],
+        'Pending', 
+        'Valid', 
+        'Checked-in', 
+        'Canceled', 
+        'Refund-Pending', 
+        'Refunded', 
+        'Expired'],
       default: 'Pending',
     },
 

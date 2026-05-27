@@ -26,6 +26,7 @@ const getTicketById = async (req, res, next) => {
 
 // ── POST /api/tickets/register ───────────────────────────────
 // UC-05: Đăng ký tham gia sự kiện (tạo vé Pending, chờ thanh toán hoặc Valid nếu miễn phí)
+// ── POST /api/tickets/register ───────────────────────────────
 const registerTicket = async (req, res, next) => {
   try {
     const { eventId, ticketType, attendeeInfo } = req.body;
@@ -33,6 +34,24 @@ const registerTicket = async (req, res, next) => {
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ success: false, message: 'Sự kiện không tồn tại.' });
     if (event.status !== 'Public') return res.status(400).json({ success: false, message: 'Sự kiện chưa công khai.' });
+    
+    // --- BẮT ĐẦU LOGIC KIỂM TRA HẠN CHÓT ĐĂNG KÝ (THEO NGÀY) ---
+    if (event.registrationDeadline) {
+      const now = new Date();
+      // Lấy ngày deadline từ DB
+      const deadline = new Date(event.registrationDeadline);
+      // Ép mốc đóng cổng là 23:59:59 của ngày đó
+      const deadlineEnd = new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate(), 23, 59, 59);
+
+      if (now > deadlineEnd) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `Đã hết thời hạn đăng ký (Hạn chót là hết ngày ${deadline.toLocaleDateString('vi-VN')}).` 
+        });
+      }
+    }
+    // --- KẾT THÚC LOGIC ---
+
     if (new Date(event.startTime) <= new Date()) return res.status(400).json({ success: false, message: 'Sự kiện đã bắt đầu hoặc đã kết thúc, không thể đăng ký.' });
     if (event.availableTickets <= 0) return res.status(400).json({ success: false, message: 'Sự kiện đã hết vé.' });
 
@@ -82,6 +101,19 @@ const registerTicket = async (req, res, next) => {
       } catch (_) {}
 
       return res.status(201).json({ success: true, message: 'Đăng ký thành công!', data: ticket });
+    }
+    if (!isFree) {
+      try {
+        // Gửi email hướng dẫn thanh toán
+        const paymentLink = `${process.env.CLIENT_URL || 'http://localhost:3000'}/payment/${ticket._id}`;
+        await sendEmail({ 
+          to: req.user.email, 
+          subject: `Xác nhận giữ chỗ: ${event.title}`, 
+          html: emailTemplates.paymentPending(event, req.user.fullName, tType.price, paymentLink) 
+        });
+      } catch (err) { 
+        console.error("Lỗi gửi email thanh toán:", err); 
+      }
     }
 
     // Sự kiện có phí → trả về ticketId để FE chuyển sang thanh toán

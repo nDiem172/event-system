@@ -21,6 +21,7 @@ const eventSchema = new mongoose.Schema(
     }],
     startTime:   { type: Date, required: true },
     endTime:     { type: Date, required: true },
+    registrationDeadline: { type: Date, required: true },
     bannerUrl:   { type: String },
     totalTickets:    { type: Number, required: true, min: 1 },
     availableTickets:{ type: Number, required: true, min: 0 },

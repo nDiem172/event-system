@@ -88,6 +88,7 @@ const main = async () => {
         { name: 'General', price: 0, quantity: 500, available: 500 },
       ],
     },
+    
   ].map((e) => {
     const totalTickets = e.ticketTypes.reduce((sum, t) => sum + t.quantity, 0);
     const availableTickets = e.ticketTypes.reduce((sum, t) => sum + t.available, 0);
