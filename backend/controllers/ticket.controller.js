@@ -104,6 +104,8 @@ const registerTicket = async (req, res, next) => {
       qrCode: ticketCode,
       status: isFree ? 'Valid' : 'Pending',
       holdExpiresAt: isFree ? undefined : new Date(Date.now() + holdMinutes * 60 * 1000),
+      sessionIds: sessionResolved.sessionIds,
+      sessionLabels: sessionResolved.sessionLabels,
     });
 
     if (isFree) {
@@ -119,7 +121,7 @@ const registerTicket = async (req, res, next) => {
 
       try {
         const ticketLink = `${process.env.CLIENT_URL || 'http://localhost:3000'}/my-tickets/${ticket._id}`;
-        await sendEmail({ to: req.user.email, subject: `Vé tham gia: ${event.title}`, html: emailTemplates.ticketConfirm(event, qrImage, req.user.fullName, ticketLink) });
+        await sendEmail({ to: req.user.email, subject: `Vé tham gia: ${event.title}`, html: emailTemplates.ticketConfirm(event, qrImage, req.user.fullName, ticketLink, ticket) });
       } catch (_) {}
 
       return res.status(201).json({ success: true, message: 'Đăng ký thành công!', data: ticket });
@@ -166,7 +168,7 @@ const updateTicketInfo = async (req, res, next) => {
 
     try {
       const ticketLink = `${process.env.CLIENT_URL || 'http://localhost:3000'}/my-tickets/${ticket._id}`;
-      await sendEmail({ to: req.user.email, subject: `Vé đã được cập nhật: ${event.title}`, html: emailTemplates.ticketUpdated(event, newQR, req.user.fullName, ticketLink) });
+      await sendEmail({ to: req.user.email, subject: `Vé đã được cập nhật: ${event.title}`, html: emailTemplates.ticketUpdated(event, newQR, req.user.fullName, ticketLink, ticket) });
     } catch (_) {}
 
     res.json({ success: true, message: 'Cập nhật thông tin vé thành công.', data: ticket });

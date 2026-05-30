@@ -33,9 +33,6 @@ export default function RegisterEventPage() {
           setSelectedType(first.name);
           setCoversAll(Boolean(first.coversAllSessions));
         }
-        if (ev.sessions?.length) {
-          setSelectedSessionIds([String(ev.sessions[0]._id)]);
-        }
         setForm((f) => ({
           ...f,
           fullName: user?.fullName || '',
@@ -71,6 +68,7 @@ export default function RegisterEventPage() {
       setSelectedSessionIds((event.sessions || []).map((s) => String(s._id)));
     } else {
       setCoversAll(false);
+      setSelectedSessionIds([]);
     }
   };
 

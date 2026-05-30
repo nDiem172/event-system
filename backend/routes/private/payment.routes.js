@@ -137,7 +137,7 @@ r.get('/vnpay/return', async (req, res, next) => {
             await sendEmail({
               to: user.email,
               subject: `Vé tham gia: ${event.title}`,
-              html: emailTemplates.ticketConfirm(event, qrImage, user.fullName, ticketLink),
+              html: emailTemplates.ticketConfirm(event, qrImage, user.fullName, ticketLink, ticket),
             });
           } catch (e) {
             console.error('Send email error:', e);

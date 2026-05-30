@@ -49,7 +49,12 @@ const normalizeSessionIds = (event, inputIds) => {
 
 const resolveRegistrationSessions = (event, { sessionIds, coversAllSessions, ticketType }) => {
   const sessions = event.sessions || [];
-  if (coversAllSessions || ticketType?.coversAllSessions) {
+  const shouldCoverAll = coversAllSessions === true
+    ? true
+    : coversAllSessions === false
+      ? false
+      : Boolean(ticketType?.coversAllSessions);
+  if (shouldCoverAll) {
     return {
       ok: true,
       sessionIds: sessions.map((s) => String(s._id)),

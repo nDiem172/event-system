@@ -37,22 +37,29 @@ const emailTemplates = {
     </div>
     <p>Link hết hạn sau 2 giờ.</p>`,
 
-  ticketConfirm: (event, qrCode, fullName, ticketLink) => `
-    <h2>🎫 Xác nhận đăng ký thành công!</h2>
-    <p>Chào <strong>${fullName}</strong>,</p>
-    <p>Bạn đã đăng ký tham gia sự kiện: <strong>${event.title}</strong></p>
-    <p>📅 Thời gian: ${new Date(event.startTime).toLocaleString('vi-VN')}</p> 
-    <p>📍 Địa điểm: ${event.location}</p>
-    <p>Mã QR vé của bạn:</p>
+  ticketConfirm: (event, qrCode, fullName, ticketLink, ticket) => `
+  <h2>🎫 Xác nhận đăng ký thành công!</h2>
+  <p>Chào <strong>${fullName}</strong>,</p>
+  <p>Bạn đã đăng ký tham gia sự kiện: <strong>${event.title}</strong></p>
 
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${ticketLink}" style="background:#2E75B6;color:white;padding:15px 35px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;box-shadow: 0 4px 10px rgba(46,117,182,0.3);">
-        👉 NHẤN ĐỂ LẤY MÃ QR VÀO CỔNG
-      </a>
-    </div>
-    <p>Vui lòng mang mã QR này đến sự kiện để check-in.</p>
-    <p style="color: #666; font-size: 13px;">Lưu ý: Mã QR hiển thị trên web là mã động, tự động thay đổi để bảo mật. Vui lòng không chụp màn hình.</p>`,
+  <div style="background:#f8f9fa;border-left:4px solid #2E75B6;padding:14px 18px;border-radius:0 8px 8px 0;margin:16px 0;">
+    <p style="margin:0 0 6px;">📅 <strong>Thời gian:</strong> ${new Date(event.startTime).toLocaleString('vi-VN')} – ${new Date(event.endTime).toLocaleString('vi-VN')}</p>
+    <p style="margin:0 0 6px;">📍 <strong>Địa điểm:</strong> ${event.location}</p>
+    <p style="margin:0 0 6px;">🎟️ <strong>Loại vé:</strong> ${ticket?.ticketType || '—'}</p>
+    <p style="margin:0 0 6px;">💰 <strong>Giá vé:</strong> ${ticket?.price === 0 ? 'Miễn phí' : (ticket?.price?.toLocaleString('vi-VN') + ' VNĐ') || '—'}</p>
+    ${ticket?.sessionLabels?.length
+      ? `<p style="margin:0;">📋 <strong>Phiên tham dự:</strong> ${ticket.sessionLabels.join(' · ')}</p>`
+      : ''
+    }
+  </div>
 
+  <div style="text-align:center;margin:28px 0;">
+    <a href="${ticketLink}" style="background:#2E75B6;color:white;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">
+      👉 NHẤN ĐỂ LẤY MÃ QR VÀO CỔNG
+    </a>
+  </div>
+  <p style="color:#666;font-size:13px;">Lưu ý: Mã QR hiển thị trên web là mã động, tự động thay đổi để bảo mật. Vui lòng không chụp màn hình.</p>`,
+  
   ticketCanceled: (event, fullName, ticketLink) => `
     <h2>Xác nhận hủy vé</h2>
     <p>Chào <strong>${fullName}</strong>,</p>

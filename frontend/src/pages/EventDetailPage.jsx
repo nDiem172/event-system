@@ -56,7 +56,9 @@ export default function EventDetailPage() {
   const isEnded = now > end;
   const isHappening = now >= start && now <= end;
   const isStarted = now >= start && !isHappening;
-  const isDeadlinePassed = now.getTime() > deadline.setHours(23, 59, 59, 999);
+const deadlineEnd = new Date(deadline);
+deadlineEnd.setHours(23, 59, 59, 999);
+const isDeadlinePassed = now > deadlineEnd;
 
 // Nút đăng ký chỉ hiện khi: Chưa kết thúc, chưa bắt đầu, chưa quá hạn, và còn vé
   const canRegister = !isEnded && !isStarted && !isHappening && !isDeadlinePassed && hasTicket;
