@@ -3,12 +3,18 @@ const Event  = require('../models/Event');
 const { WaitingList, Transaction } = require('../models/index');
 const { generateTicketCode, generateQRCode } = require('../utils/qr.util');
 const { sendEmail, emailTemplates } = require('../utils/email.util');
+const {
+  MAX_TICKETS_PER_USER_PER_EVENT,
+  resolveRegistrationSessions,
+} = require('../utils/ticketSession.util');
+
+const ACTIVE_TICKET_STATUSES = ['Pending', 'Valid', 'Checked-in', 'Refund-Pending'];
 
 // ── GET /api/tickets/my-tickets ──────────────────────────────
 const getMyTickets = async (req, res, next) => {
   try {
     const tickets = await Ticket.find({ userId: req.user._id })
-      .populate('eventId', 'title startTime endTime location bannerUrl status')
+      .populate('eventId', 'title startTime endTime location bannerUrl status sessions')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: tickets });
   } catch (err) { next(err); }
@@ -18,7 +24,7 @@ const getMyTickets = async (req, res, next) => {
 const getTicketById = async (req, res, next) => {
   try {
     const ticket = await Ticket.findOne({ _id: req.params.id, userId: req.user._id })
-      .populate('eventId', 'title startTime endTime location');
+      .populate('eventId', 'title startTime endTime location sessions');
     if (!ticket) return res.status(404).json({ success: false, message: 'Không tìm thấy vé.' });
     res.json({ success: true, data: ticket });
   } catch (err) { next(err); }
@@ -29,7 +35,7 @@ const getTicketById = async (req, res, next) => {
 // ── POST /api/tickets/register ───────────────────────────────
 const registerTicket = async (req, res, next) => {
   try {
-    const { eventId, ticketType, attendeeInfo } = req.body;
+    const { eventId, ticketType, attendeeInfo, sessionIds, coversAllSessions } = req.body;
 
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ success: false, message: 'Sự kiện không tồn tại.' });
@@ -46,7 +52,7 @@ const registerTicket = async (req, res, next) => {
       if (now > deadlineEnd) {
         return res.status(400).json({ 
           success: false, 
-          message: `Đã hết thời hạn đăng ký (Hạn chót là hết ngày ${deadline.toLocaleDateString('vi-VN')}).` 
+          message: `Sự kiện đã đóng cổng đăng ký. Hạn chót là hết ngày ${deadline.toLocaleDateString('vi-VN')}.` 
         });
       }
     }
@@ -55,13 +61,29 @@ const registerTicket = async (req, res, next) => {
     if (new Date(event.startTime) <= new Date()) return res.status(400).json({ success: false, message: 'Sự kiện đã bắt đầu hoặc đã kết thúc, không thể đăng ký.' });
     if (event.availableTickets <= 0) return res.status(400).json({ success: false, message: 'Sự kiện đã hết vé.' });
 
-    // Kiểm tra đã đăng ký chưa (1 vé / tài khoản)
-    const existing = await Ticket.findOne({ eventId, userId: req.user._id, status: { $in: ['Pending','Valid','Checked-in'] } });
-    if (existing) return res.status(400).json({ success: false, message: 'Bạn đã đăng ký sự kiện này rồi.' });
+    const ticketCount = await Ticket.countDocuments({
+      eventId,
+      userId: req.user._id,
+      status: { $in: ACTIVE_TICKET_STATUSES },
+    });
+    if (ticketCount >= MAX_TICKETS_PER_USER_PER_EVENT) {
+      return res.status(400).json({
+        success: false,
+        message: `Bạn đã đăng ký tối đa ${MAX_TICKETS_PER_USER_PER_EVENT} vé cho sự kiện này.`,
+      });
+    }
 
-    // Tìm loại vé
     const tType = event.ticketTypes.find(t => t.name === ticketType);
     if (!tType) return res.status(400).json({ success: false, message: 'Loại vé không hợp lệ.' });
+
+    const sessionResolved = resolveRegistrationSessions(event, {
+      sessionIds,
+      coversAllSessions: Boolean(coversAllSessions),
+      ticketType: tType,
+    });
+    if (!sessionResolved.ok) {
+      return res.status(400).json({ success: false, message: sessionResolved.message });
+    }
 
     const isFree = tType.price === 0;
     const ticketCode = generateTicketCode();

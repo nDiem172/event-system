@@ -10,6 +10,7 @@ const STATUS_LABEL = {
   'Canceled':      { label: 'Đã hủy',          color: '#e74c3c' },
   'Refund-Pending':{ label: 'Chờ hoàn tiền',   color: '#8e44ad' },
   'Refunded':      { label: 'Đã hoàn tiền',    color: '#7f8c8d' },
+  'Expired':       { label: 'Hết hiệu lực',   color: '#95a5a6' },
 };
 
 export default function TicketDetailPage() {
@@ -153,6 +154,7 @@ export default function TicketDetailPage() {
                     ['Số điện thoại', ticket.attendeeInfo.phone],
                     ['Nghề nghiệp', ticket.attendeeInfo.occupation || '—'],
                     ['Loại vé', ticket.ticketType],
+                    ['Phiên áp dụng', ticket.sessionLabels?.length ? ticket.sessionLabels.join(' · ') : '—'],
                     ['Giá vé', ticket.price === 0 ? 'Miễn phí' : `${ticket.price.toLocaleString('vi-VN')} đ`],
                     ticket.checkedInAt ? ['Thời gian check-in', new Date(ticket.checkedInAt).toLocaleString('vi-VN')] : null,
                   ].filter(Boolean).map(([k, v]) => (

@@ -18,6 +18,10 @@ const ticketSchema = new mongoose.Schema(
     ticketCode: { type: String, required: true, unique: true },
     qrCode:     { type: String },  // base64 hoặc URL ảnh QR
 
+    // Phiên được phép vào cổng (ObjectId của event.sessions._id)
+    sessionIds:    [{ type: mongoose.Schema.Types.ObjectId }],
+    sessionLabels: [{ type: String }],
+
     // ─── 7 trạng thái theo đặc tả ─────────────────────
     status: {
       type: String,

@@ -5,6 +5,12 @@ const { RefundRequest, WaitingList, Transaction, SystemLog, CheckInLog } = requi
 const { sendEmail, emailTemplates } = require('../utils/email.util');
 const XLSX = require('xlsx');
 const { generateQRCode, parseTicketCodeFromScan } = require('../utils/qr.util');
+const {
+  getTodaySession,
+  ticketCoversSession,
+  getEffectiveSessionIds,
+  formatSessionLabel,
+} = require('../utils/ticketSession.util');
 const crypto = require('crypto');
 const qs = require('qs');
 
@@ -578,7 +584,9 @@ const adjustTicketStock = async (req, res, next) => {
 //   } catch (err) { next(err); }
 // };
 const validateCheckInWindow = async (ticket, scannerName) => {
-  if (ticket.status === 'Expired') return { ok: false, message: 'Vé này đã hết hiệu lực do đi trễ.' };
+  if (ticket.status === 'Expired') {
+    return { ok: false, message: 'Vé này đã hết hiệu lực.' };
+  }
   if (!['Valid', 'Checked-in'].includes(ticket.status)) {
     return { ok: false, message: `Vé ở trạng thái ${ticket.status}, không thể check-in.` };
   }
@@ -586,7 +594,6 @@ const validateCheckInWindow = async (ticket, scannerName) => {
   const event = ticket.eventId;
   const now = nowInTZ();
 
-  // Hard stop: after event endTime, never allow check-in
   if (event.endTime) {
     const endParts = getTZParts(new Date(event.endTime));
     const eventEnd = new Date(Date.UTC(endParts.year, endParts.month - 1, endParts.day, endParts.hour, endParts.minute, endParts.second));
@@ -597,14 +604,17 @@ const validateCheckInWindow = async (ticket, scannerName) => {
     }
   }
 
-  const sessions = event.sessions || [];
-  const session = sessions.find((s) => {
-    const dParts = getTZParts(new Date(s.date));
-    const nParts = getTZParts(new Date(now));
-    return dParts.year === nParts.year && dParts.month === nParts.month && dParts.day === nParts.day;
-  });
-
+  const session = getTodaySession(event, now);
   if (!session) return { ok: false, message: 'Hôm nay không có phiên sự kiện nào diễn ra.' };
+
+  const sessionId = String(session._id);
+  if (!ticketCoversSession(ticket, sessionId)) {
+    const allowed = (ticket.sessionLabels || []).join(', ') || 'không có phiên hôm nay';
+    return {
+      ok: false,
+      message: `Vé không có quyền vào phiên hôm nay. Vé áp dụng: ${allowed}.`,
+    };
+  }
 
   const [startH, startM] = session.startCheckIn.split(':').map(Number);
   const [endH, endM] = session.endCheckIn.split(':').map(Number);
@@ -613,25 +623,43 @@ const validateCheckInWindow = async (ticket, scannerName) => {
   const endTime = new Date(Date.UTC(nParts.year, nParts.month - 1, nParts.day, endH, endM, 0, 0));
   const openTime = new Date(startTime.getTime() - (30 * 60 * 1000));
 
-  if (now < openTime) return { ok: false, message: `Chưa đến giờ check-in. Mở cửa lúc ${session.startCheckIn}.` };
+  if (now < openTime) {
+    return { ok: false, message: `Chưa đến giờ check-in. Mở cửa lúc ${session.startCheckIn}.` };
+  }
   if (now > endTime) {
-    ticket.status = 'Expired';
-    await ticket.save();
-    return { ok: false, message: 'Đã quá thời hạn check-in. Vé đã bị khóa.' };
+    return { ok: false, message: 'Đã quá thời hạn check-in cho phiên hôm nay.' };
   }
 
-  const startOfToday = new Date(Date.UTC(nParts.year, nParts.month - 1, nParts.day, 0, 0, 0, 0));
-  const endOfToday = new Date(Date.UTC(nParts.year, nParts.month - 1, nParts.day, 23, 59, 59, 999));
-  const alreadyCheckedIn = await CheckInLog.findOne({
-    ticketId: ticket._id,
-    scannedAt: { $gte: startOfToday, $lte: endOfToday },
-  });
-  if (alreadyCheckedIn) return { ok: false, message: 'Vé này đã được check-in cho ngày hôm nay rồi!' };
+  const alreadyCheckedIn = await CheckInLog.findOne({ ticketId: ticket._id, sessionId: session._id });
+  if (alreadyCheckedIn) {
+    return {
+      ok: false,
+      message: 'Vé đã được check-in cho phiên hôm nay rồi!',
+      data: {
+        fullName: ticket.attendeeInfo.fullName,
+        ticketCode: ticket.ticketCode,
+        sessionLabel: formatSessionLabel(session, (event.sessions || []).findIndex((s) => String(s._id) === sessionId)),
+      },
+    };
+  }
 
-  await CheckInLog.create({ ticketId: ticket._id, scannedAt: now, scannerName });
-  ticket.status = 'Checked-in';
+  await CheckInLog.create({ ticketId: ticket._id, sessionId: session._id, scannedAt: now, scannerName });
+
+  const requiredIds = getEffectiveSessionIds(ticket, event);
+  const checkedCount = await CheckInLog.countDocuments({
+    ticketId: ticket._id,
+    sessionId: { $in: requiredIds },
+  });
+
   ticket.checkedInAt = now;
+  if (checkedCount >= requiredIds.length) {
+    ticket.status = 'Checked-in';
+  } else {
+    ticket.status = 'Valid';
+  }
   await ticket.save();
+
+  const sessionLabel = formatSessionLabel(session, (event.sessions || []).findIndex((s) => String(s._id) === sessionId));
 
   return {
     ok: true,
@@ -643,6 +671,9 @@ const validateCheckInWindow = async (ticket, scannerName) => {
       ticketType: ticket.ticketType,
       checkedInAt: ticket.checkedInAt,
       eventTitle: event.title,
+      sessionLabel,
+      sessionsProgress: `${checkedCount}/${requiredIds.length} phiên`,
+      sessionLabels: ticket.sessionLabels || [],
     },
   };
 };
@@ -696,19 +727,16 @@ const syncOfflineCheckins = async (req, res, next) => {
         continue;
       }
       
-      const ticket = await Ticket.findOne({ ticketCode });
+      const ticket = await Ticket.findOne({ ticketCode }).populate('eventId', 'title sessions endTime');
       if (!ticket) {
         results.push({ qrCode: item.qrCode, status: 'skipped', reason: 'Không tìm thấy vé' });
         continue;
       }
-      if (ticket.status === 'Checked-in') {
-        results.push({ qrCode: item.qrCode, status: 'skipped', reason: 'Đã check-in' });
+      const checked = await validateCheckInWindow(ticket, 'Offline Sync');
+      if (!checked.ok) {
+        results.push({ qrCode: item.qrCode, status: 'skipped', reason: checked.message });
         continue;
       }
-      
-      ticket.status = 'Checked-in';
-      ticket.checkedInAt = item.checkedInAt || new Date();
-      await ticket.save();
       results.push({ qrCode: item.qrCode, status: 'success' });
     }
     res.json({ success: true, message: `Đồng bộ xong ${results.filter(r=>r.status==='success').length}/${checkins.length} vé.`, data: results });

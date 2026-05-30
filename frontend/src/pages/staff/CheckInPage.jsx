@@ -12,6 +12,8 @@ const FIELD_LABELS = [
   ['phone',       '📞 Số điện thoại'],
   ['email',       '📧 Email'],
   ['eventTitle',  '📅 Sự kiện'],
+  ['sessionLabel', '📆 Phiên hôm nay'],
+  ['sessionsProgress', '📊 Tiến độ phiên'],
   ['checkedInAt', '✅ Giờ check-in'],
 ];
 

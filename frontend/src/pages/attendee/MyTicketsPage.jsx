@@ -10,6 +10,7 @@ const STATUS_LABEL = {
   'Canceled':      { label: 'Đã hủy',          color: '#e74c3c' },
   'Refund-Pending':{ label: 'Chờ hoàn tiền',   color: '#8e44ad' },
   'Refunded':      { label: 'Đã hoàn tiền',    color: '#7f8c8d' },
+  'Expired':       { label: 'Hết hiệu lực',   color: '#95a5a6' },
 };
 
 export default function MyTicketsPage() {
@@ -59,6 +60,12 @@ export default function MyTicketsPage() {
                     Loại vé: <strong>{ticket.ticketType}</strong> —{' '}
                     {ticket.price === 0 ? 'Miễn phí' : `${ticket.price.toLocaleString('vi-VN')} đ`}
                   </p>
+                  {ticket.sessionLabels?.length > 0 && (
+                    <p style={{ margin: '6px 0 0', fontSize: 12, color: '#667085' }}>
+                      Phiên: {ticket.sessionLabels.join(' · ')}
+                    </p>
+                  )}
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: '#888' }}>Mã: {ticket.ticketCode}</p>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
                   <span style={{ background: st.color + '22', color: st.color, padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 'bold' }}>

@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
 
 const ticketTypeSchema = new mongoose.Schema({
-  name:  { type: String, required: true },  // VD: "VIP", "General"
+  name:  { type: String, required: true },  // VD: "VIP", "General", "Trọn gói 3 ngày"
   price: { type: Number, required: true, min: 0 },
   quantity: { type: Number, required: true, min: 0 },
   available: { type: Number, required: true, min: 0 },
+  coversAllSessions: { type: Boolean, default: false }, // true = vé gồm tất cả phiên
 }, { _id: false });
 
 const eventSchema = new mongoose.Schema(

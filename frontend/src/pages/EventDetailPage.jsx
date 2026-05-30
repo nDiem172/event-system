@@ -31,11 +31,35 @@ export default function EventDetailPage() {
   if (loading) return <p style={{ textAlign: 'center', padding: 60 }}>Đang tải...</p>;
   if (!event)  return <p style={{ textAlign: 'center', padding: 60 }}>Không tìm thấy sự kiện.</p>;
 
+  // const now = new Date();
+  // const start = new Date(event.startTime);
+  // const end = new Date(event.endTime);
+  // const deadline = new Date(event.registrationDeadline);
+  // const isEnded = new Date(event.endTime) <= now;
+  // const isStarted = new Date(event.startTime) <= now;
+  // const isFree    = event.ticketTypes?.[0]?.price === 0;
+  // const hasTicket = event.availableTickets > 0;
+
+  // const isEnded = now > end;
+  // const isHappening = now >= start && now <= end; // Đang diễn ra
+  // const isStarted = now >= start && !isHappening; // Chỉ là "đã bắt đầu" khi đã vượt qua thời gian start nhưng chưa kết thúc
+  // const isDeadlinePassed = now.getTime() > deadline.setHours(23, 59, 59, 999);
+  // const hasTicket = event.availableTickets > 0;
+
+  // --- LOGIC TÍNH TOÁN TRẠNG THÁI ---
   const now = new Date();
-  const isEnded = new Date(event.endTime) <= now;
-  const isStarted = new Date(event.startTime) <= now;
-  const isFree    = event.ticketTypes?.[0]?.price === 0;
+  const start = new Date(event.startTime);
+  const end = new Date(event.endTime);
+  const deadline = new Date(event.registrationDeadline);
+  
   const hasTicket = event.availableTickets > 0;
+  const isEnded = now > end;
+  const isHappening = now >= start && now <= end;
+  const isStarted = now >= start && !isHappening;
+  const isDeadlinePassed = now.getTime() > deadline.setHours(23, 59, 59, 999);
+
+// Nút đăng ký chỉ hiện khi: Chưa kết thúc, chưa bắt đầu, chưa quá hạn, và còn vé
+  const canRegister = !isEnded && !isStarted && !isHappening && !isDeadlinePassed && hasTicket;
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 20px' }}>
@@ -59,6 +83,12 @@ export default function EventDetailPage() {
                 {new Date(event.endTime).toLocaleString('vi-VN')}
               </div>
             </div>
+            <div>
+            <div style={{ color: '#888', fontSize: 12 }}>HẠN CHÓT ĐĂNG KÝ</div>
+            <div style={{ fontWeight: 'bold', color: '#1F3864' }}>
+              {new Date(event.registrationDeadline).toLocaleDateString('vi-VN')}
+            </div>
+          </div>
           </div>
           <p style={{ marginBottom: 12 }}>📍 <strong>{event.location}</strong></p>
           <hr style={{ margin: '20px 0', borderColor: '#e0e0e0' }} />
@@ -79,24 +109,33 @@ export default function EventDetailPage() {
             <h3 style={{ color: '#1F3864', marginBottom: 16 }}>Thông tin vé</h3>
             {event.ticketTypes?.map(t => (
               <div key={t.name} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 15 }}>
-                <span>{t.name}</span>
+                <span>{t.name}{t.coversAllSessions ? ' (trọn phiên)' : ''}</span>
                 <strong style={{ color: t.price === 0 ? '#27ae60' : '#2E75B6' }}>
                   {t.price === 0 ? 'Miễn phí' : `${t.price.toLocaleString('vi-VN')} đ`}
                 </strong>
               </div>
             ))}
+            {(event.sessions || []).length > 0 && (
+              <p style={{ fontSize: 12, color: '#667085', marginBottom: 12 }}>
+                {event.sessions.length} phiên · Mỗi người tối đa 4 vé / sự kiện
+              </p>
+            )}
             <div style={{ borderTop: '1px solid #eee', margin: '16px 0' }} />
             {isEnded ? (
-              <p style={{ fontSize: 13, color: '#888', fontWeight: 'bold', marginBottom: 16 }}>⏱️ Sự kiện đã kết thúc</p>
+              <p style={{ fontSize: 13, color: '#888', fontWeight: 'bold', marginBottom: 18, textAlign: 'center', textTransform: 'uppercase' }}>⏱️ Sự kiện đã kết thúc</p>
+            ) : isHappening ? (
+              <p style={{ fontSize: 13, color: '#e67e22', fontWeight: 'bold', marginBottom: 18, textAlign: 'center', textTransform: 'uppercase' }}>⏱️ Sự kiện đang diễn ra</p>
             ) : isStarted ? (
-              <p style={{ fontSize: 13, color: '#e67e22', fontWeight: 'bold', marginBottom: 16 }}>⏱️ Sự kiện đã bắt đầu</p>
-            ) : (
-              <p style={{ fontSize: 13, color: hasTicket ? '#27ae60' : '#e74c3c', fontWeight: 'bold', marginBottom: 16 }}>
+              <p style={{ fontSize: 13, color: '#e67e22', fontWeight: 'bold', marginBottom: 18, textAlign: 'center', textTransform: 'uppercase'}}>⏱️ Sự kiện đã bắt đầu</p>
+            ) : isDeadlinePassed ? (
+              <p style={{ fontSize: 13, color: '#e74c3c', fontWeight: 'bold', marginBottom: 18, textAlign: 'center', textTransform: 'uppercase' }}>Đã hết hạn đăng ký</p>
+            ): (
+              <p style={{ fontSize: 13, color: hasTicket ? '#27ae60' : '#e74c3c', fontWeight: 'bold', marginBottom: 18, textAlign: 'center', textTransform: 'uppercase' }}>
                 {hasTicket ? `✅ Còn ${event.availableTickets} vé` : '❌ Đã hết vé'}
               </p>
             )}
 
-            {!isEnded && !isStarted && hasTicket ? (
+            {/* {!isEnded && !isStarted && !isHappening && hasTicket ? (
               user ? (
                 user.role === 'Attendee' ? (
                   <Link to={`/events/${id}/register`}>
@@ -111,11 +150,32 @@ export default function EventDetailPage() {
                 </Link>
               )
             ) : (
-              !isEnded && !isStarted && user?.role === 'Attendee' && (
+              !isEnded && !isStarted && !isHappening && user?.role === 'Attendee' && (
                 <button onClick={handleJoinWaitlist} style={btn('#e67e22')}>
                   ⏳ Vào danh sách chờ
                 </button>
               )
+            )} */}
+            {/* Nút Đăng ký (Sẽ tự ẩn nếu canRegister là false) */}
+            {canRegister && (
+              user ? (
+                user.role === 'Attendee' ? (
+                  <Link to={`/events/${id}/register`}>
+                    <button style={btn('#1F3864')}>🎫 Đăng ký tham gia</button>
+                  </Link>
+                ) : <p style={{ color: '#888', fontSize: 13, textAlign: 'center' }}>Chỉ Người tham dự mới đăng ký được</p>
+              ) : (
+                <Link to={`/login`} state={{ from: `/events/${id}/register` }}>
+                  <button style={btn('#2E75B6')}>Đăng nhập để đăng ký</button>
+                </Link>
+              )
+            )}
+
+            {/* Danh sách chờ chỉ hiển thị nếu CHƯA hết hạn đăng ký VÀ người dùng là Attendee */}
+            {!canRegister && !isEnded && !isHappening && !isDeadlinePassed && user?.role === 'Attendee' && (
+              <button onClick={handleJoinWaitlist} style={btn('#e67e22')}>
+                ⏳ Vào danh sách chờ
+              </button>
             )}
 
             {event.policies?.minAge > 0 && (

@@ -41,7 +41,7 @@ const emailTemplates = {
     <h2>🎫 Xác nhận đăng ký thành công!</h2>
     <p>Chào <strong>${fullName}</strong>,</p>
     <p>Bạn đã đăng ký tham gia sự kiện: <strong>${event.title}</strong></p>
-    <p>📅 Thời gian: ${new Date(event.startTime).toLocaleString('vi-VN')}</p>
+    <p>📅 Thời gian: ${new Date(event.startTime).toLocaleString('vi-VN')}</p> 
     <p>📍 Địa điểm: ${event.location}</p>
     <p>Mã QR vé của bạn:</p>
 
